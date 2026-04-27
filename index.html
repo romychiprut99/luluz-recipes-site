@@ -34,6 +34,13 @@
             </div>
         </header>
         <main class="max-w-6xl mx-auto px-6 py-12">
+            <div class="relative mb-6">
+                <input type="text" id="searchInput" placeholder="חיפוש מתכון..." oninput="onSearchChange(this.value)" class="w-full p-4 pr-12 bg-white border border-theme/30 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute right-4 top-1/2 -translate-y-1/2 text-theme/60" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div id="categoryTabs" class="flex flex-wrap gap-2 mb-8 border-b border-theme/20 pb-1"></div>
             <div id="menuGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
         </main>
     </div>
@@ -88,6 +95,8 @@
         let editingRecipeId = null; // Tracks whether we're editing an existing recipe
         let editingRecipeImg = null; // Stores the current image when editing
         let recipesCache = null; // Local cache of all recipes
+        let activeCategory = 'all'; // Currently selected category filter
+        let searchQuery = ''; // Currently typed search query
 
         // --- SLUG UTILITIES ---
         function toSlug(title) {
@@ -125,15 +134,60 @@
             return recipesCache;
         }
 
+        function selectCategory(cat) {
+            activeCategory = cat;
+            renderMenu();
+        }
+
+        function onSearchChange(value) {
+            searchQuery = value.trim().toLowerCase();
+            renderMenu();
+        }
+
         async function renderMenu() {
             const grid = document.getElementById('menuGrid');
+            const tabsEl = document.getElementById('categoryTabs');
             const recipes = await fetchAllRecipes();
 
             if (recipes.length === 0) {
+                tabsEl.innerHTML = '';
                 grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">אין מתכונים עדיין. לחץ על ה- + למעלה!</p>`;
                 return;
             }
-            grid.innerHTML = recipes.map(r => `
+
+            // Build unique category list
+            const categories = [...new Set(recipes.map(r => r.cat || 'כללי'))].sort();
+            // Make sure activeCategory still exists, otherwise reset
+            if (activeCategory !== 'all' && !categories.includes(activeCategory)) {
+                activeCategory = 'all';
+            }
+
+            // Render tabs
+            const tabBtn = (label, value, count) => {
+                const isActive = activeCategory === value;
+                return `<button onclick="selectCategory('${value.replace(/'/g, "\\'")}')" class="px-5 py-2.5 rounded-t-xl font-bold text-sm transition-all ${isActive ? 'bg-theme text-white shadow-md' : 'text-theme-dark hover:bg-theme-light'}">${label} <span class="text-xs opacity-70">(${count})</span></button>`;
+            };
+            tabsEl.innerHTML = [
+                tabBtn('הכל', 'all', recipes.length),
+                ...categories.map(cat => tabBtn(cat, cat, recipes.filter(r => (r.cat || 'כללי') === cat).length))
+            ].join('');
+
+            // Filter recipes by active category and search query
+            let filtered = activeCategory === 'all'
+                ? recipes
+                : recipes.filter(r => (r.cat || 'כללי') === activeCategory);
+
+            if (searchQuery) {
+                filtered = filtered.filter(r => (r.title || '').toLowerCase().includes(searchQuery));
+            }
+
+            if (filtered.length === 0) {
+                const msg = searchQuery ? `לא נמצאו מתכונים עבור "${searchQuery}"` : 'אין מתכונים בקטגוריה זו';
+                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">${msg}</p>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(r => `
                 <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer relative group" onclick="viewRecipe(${r.id})">
                     <img src="${r.img}" class="h-64 w-full object-cover" style="object-position: center ${r.img_pos || 50}%">
                     <div class="p-6">
