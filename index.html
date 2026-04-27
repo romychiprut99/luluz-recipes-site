@@ -88,11 +88,26 @@
 
         // --- SLUG UTILITIES ---
         function toSlug(title) {
-            return encodeURIComponent(title.trim().replace(/\s+/g, '-'));
+            return title.trim().replace(/\s+/g, '-');
         }
 
         function fromSlug(slug) {
             return decodeURIComponent(slug).replace(/-/g, ' ');
+        }
+
+        function formatText(text) {
+            if (!text) return '';
+            return text.split('\n').map(line => {
+                if (line.trimStart().startsWith('*')) {
+                    const content = line.replace(/^\s*\*\s?/, '');
+                    return `<label class="flex items-start gap-3 cursor-pointer group py-1">
+                        <input type="checkbox" class="mt-1.5 w-5 h-5 rounded border-gray-300 text-theme focus:ring-theme cursor-pointer accent-[#a1ad95]" onchange="this.parentElement.classList.toggle('line-through'); this.parentElement.classList.toggle('text-gray-400')">
+                        <span class="transition-all">${content}</span>
+                    </label>`;
+                }
+                if (line.trim() === '') return '<br>';
+                return `<div>${line}</div>`;
+            }).join('');
         }
 
         function updateFileName(input) {
@@ -278,15 +293,15 @@
                     </div>
                 </div>
                 <img src="${r.img}" class="w-full h-96 object-cover rounded-[3rem] shadow-xl mb-10">
-                <h1 class="text-6xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
+                <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div class="bg-theme-light/40 p-10 rounded-[2.5rem]">
                         <h3 class="text-2xl font-bold mb-4 text-theme-dark">🛒 מצרכים</h3>
-                        <p class="white-space-pre text-xl leading-relaxed">${r.ingredients}</p>
+                        <div class="text-xl leading-relaxed space-y-1">${formatText(r.ingredients)}</div>
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold mb-4 text-gray-700">👨‍🍳 שלבי הכנה</h3>
-                        <p class="white-space-pre text-xl leading-relaxed">${r.steps}</p>
+                        <div class="text-xl leading-relaxed space-y-1">${formatText(r.steps)}</div>
                     </div>
                 </div>
             `;
@@ -310,7 +325,7 @@
         }
 
         async function shareRecipe() {
-            const url = window.location.href;
+            const url = decodeURIComponent(window.location.href);
             try {
                 await navigator.clipboard.writeText(url);
                 // Show a brief "copied" tooltip
