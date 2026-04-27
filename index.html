@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ספר המתכונים של הלולז</title>
+    <title>ספר המתכונים של לולוז</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -17,6 +17,9 @@
         .white-space-pre { white-space: pre-wrap; }
         .page { display: none; }
         .page.active { display: block; }
+        /* Smooth loading spinner */
+        .loader { border-top-color: #a1ad95; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="text-gray-900">
@@ -25,7 +28,7 @@
         <header class="py-12 border-b border-gray-100 bg-theme-light/50">
             <div class="max-w-6xl mx-auto px-6 flex justify-between items-center">
                 <h1 class="text-4xl font-bold text-theme">המתכונים של לולוז</h1>
-                <button onclick="navigateTo('pageCreate')" class="bg-theme text-white w-12 h-12 rounded-full shadow-lg hover:bg-theme-dark transition flex items-center justify-center text-3xl">+</button>
+                <button onclick="navigateTo('pageCreate')" class="bg-theme text-white w-14 h-14 rounded-full shadow-lg hover:bg-theme-dark transition flex items-center justify-center text-4xl font-light">+</button>
             </div>
         </header>
         <main class="max-w-6xl mx-auto px-6 py-12">
@@ -35,28 +38,33 @@
 
     <div id="pageCreate" class="page bg-theme-light/20 min-h-screen">
         <div class="max-w-4xl mx-auto px-6 py-12">
-            <button onclick="navigateTo('pageMenu')" class="mb-6 text-gray-500 flex items-center gap-2"><span>→</span> ביטול</button>
-            <div class="bg-white p-8 rounded-3xl shadow-sm">
-                <h2 class="text-3xl font-bold text-theme mb-8 text-center">מתכון חדש לענן</h2>
+            <button onclick="navigateTo('pageMenu')" class="mb-6 text-gray-500 flex items-center gap-2 hover:text-theme transition"><span>→</span> ביטול וחזרה</button>
+            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-theme-light">
+                <h2 class="text-3xl font-bold text-theme mb-8 text-center">הוספת מתכון חדש</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
-                        <input type="text" id="title" placeholder="שם המנה" class="w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-2 focus:ring-theme">
-                        <input type="text" id="category" placeholder="קטגוריה" class="w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-2 focus:ring-theme">
-                        <input type="file" id="imageFile" accept="image/*" class="w-full text-sm">
+                        <input type="text" id="title" placeholder="שם המנה" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
+                        <input type="text" id="category" placeholder="קטגוריה (למשל: עיקריות)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
+                        <div class="p-4 border-2 border-dashed border-theme-light rounded-2xl bg-gray-50 text-center">
+                            <label class="cursor-pointer block">
+                                <span id="fileName" class="text-gray-500 text-sm">לחץ לבחירת תמונה מהגלריה</span>
+                                <input type="file" id="imageFile" accept="image/*" class="hidden" onchange="updateFileName(this)">
+                            </label>
+                        </div>
                     </div>
                     <div class="space-y-4">
-                        <textarea id="ingredients" placeholder="מצרכים..." class="w-full p-4 bg-gray-50 border rounded-2xl h-32"></textarea>
-                        <textarea id="steps" placeholder="הוראות..." class="w-full p-4 bg-gray-50 border rounded-2xl h-32"></textarea>
+                        <textarea id="ingredients" placeholder="מצרכים..." class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme h-32"></textarea>
+                        <textarea id="steps" placeholder="שלבי הכנה..." class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme h-32"></textarea>
                     </div>
                 </div>
-                <button id="saveBtn" onclick="processAndSave()" class="w-full mt-8 bg-theme text-white font-bold py-4 rounded-2xl">שמור מתכון לכולם</button>
+                <button id="saveBtn" onclick="processAndSave()" class="w-full mt-8 bg-theme text-white font-bold py-5 rounded-2xl hover:bg-theme-dark transition-all text-xl shadow-lg shadow-theme/20">שמור מתכון ופרסם</button>
             </div>
         </div>
     </div>
 
     <div id="pageView" class="page min-h-screen">
         <div class="max-w-4xl mx-auto px-6 py-12">
-            <button onclick="navigateTo('pageMenu')" class="mb-8 text-theme font-bold"><span>→</span> חזרה</button>
+            <button onclick="navigateTo('pageMenu')" class="mb-8 text-theme font-bold flex items-center gap-2"><span>→</span> חזרה לתפריט</button>
             <div id="viewContent"></div>
         </div>
     </div>
@@ -65,30 +73,42 @@
         // --- CONFIGURATION ---
         const SUPABASE_URL = 'https://ydyzgkjawrbyitahmwtu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VC_Xm-WhVxpyUg7RTKAAnQ_A_ZWHpQu';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Correct initialization
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function updateFileName(input) {
+            const name = input.files[0]?.name || "לחץ לבחירת תמונה מהגלריה";
+            document.getElementById('fileName').innerText = name;
+        }
 
         async function renderMenu() {
             const grid = document.getElementById('menuGrid');
-            const { data: recipes, error } = await supabase.from('recipes').select('*').order('created_at', { ascending: false });
+            const { data: recipes, error } = await _supabase.from('recipes').select('*').order('created_at', { ascending: false });
 
-            if (recipes.length === 0) {
-                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">אין מתכונים בענן עדיין.</p>`;
+            if (!recipes || recipes.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">אין מתכונים עדיין. לחץ על ה- + למעלה!</p>`;
                 return;
             }
             grid.innerHTML = recipes.map(r => `
                 <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer" onclick="viewRecipe(${r.id})">
                     <img src="${r.img}" class="h-64 w-full object-cover">
                     <div class="p-6">
-                        <span class="text-theme text-xs font-bold">${r.cat}</span>
-                        <h3 class="text-2xl mt-1 font-bold">${r.title}</h3>
+                        <span class="text-theme text-xs font-bold uppercase tracking-widest">${r.cat}</span>
+                        <h3 class="text-2xl mt-1 font-bold text-gray-800">${r.title}</h3>
                     </div>
                 </div>
             `).join('');
         }
 
         async function processAndSave() {
+            const title = document.getElementById('title').value;
+            if(!title) return alert("בבקשה תני שם למתכון!");
+
             const btn = document.getElementById('saveBtn');
-            btn.disabled = true; btn.innerText = "מעלה...";
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-6 w-6 mx-auto"></div>';
 
             const file = document.getElementById('imageFile').files[0];
             let imageData = 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800';
@@ -105,7 +125,7 @@
         }
 
         async function uploadToSupabase(img) {
-            const { error } = await supabase.from('recipes').insert([{
+            const { error } = await _supabase.from('recipes').insert([{
                 title: document.getElementById('title').value,
                 cat: document.getElementById('category').value || 'כללי',
                 ingredients: document.getElementById('ingredients').value,
@@ -113,19 +133,35 @@
                 img: img
             }]);
 
-            if (error) { alert("שגיאה בשמירה"); console.log(error); }
-            else { navigateTo('pageMenu'); }
-            document.getElementById('saveBtn').disabled = false;
+            if (error) {
+                alert("שגיאה בשמירה: " + error.message);
+                document.getElementById('saveBtn').disabled = false;
+                document.getElementById('saveBtn').innerText = "נסה שוב";
+            }
+            else {
+                // Clear fields
+                document.getElementById('title').value = '';
+                document.getElementById('ingredients').value = '';
+                document.getElementById('steps').value = '';
+                document.getElementById('imageFile').value = '';
+                navigateTo('pageMenu');
+            }
         }
 
         async function viewRecipe(id) {
-            const { data: r } = await supabase.from('recipes').select('*').eq('id', id).single();
+            const { data: r } = await _supabase.from('recipes').select('*').eq('id', id).single();
             document.getElementById('viewContent').innerHTML = `
-                <img src="${r.img}" class="w-full h-80 object-cover rounded-3xl shadow-lg mb-8">
-                <h1 class="text-5xl font-bold mb-10 border-r-8 border-theme pr-6">${r.title}</h1>
+                <img src="${r.img}" class="w-full h-96 object-cover rounded-[3rem] shadow-xl mb-10">
+                <h1 class="text-6xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div class="bg-theme-light/40 p-10 rounded-3xl text-xl"><h3 class="font-bold mb-4">🛒 מצרכים</h3><p class="white-space-pre">${r.ingredients}</p></div>
-                    <div class="text-xl"><h3 class="font-bold mb-4">👨‍🍳 שלבי הכנה</h3><p class="white-space-pre">${r.steps}</p></div>
+                    <div class="bg-theme-light/40 p-10 rounded-[2.5rem]">
+                        <h3 class="text-2xl font-bold mb-4 text-theme-dark">🛒 מצרכים</h3>
+                        <p class="white-space-pre text-xl leading-relaxed">${r.ingredients}</p>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4 text-gray-700">👨‍🍳 שלבי הכנה</h3>
+                        <p class="white-space-pre text-xl leading-relaxed">${r.steps}</p>
+                    </div>
                 </div>
             `;
             navigateTo('pageView');
@@ -134,10 +170,12 @@
         function navigateTo(pageId) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(pageId).classList.add('active');
+            window.scrollTo(0,0);
             if(pageId === 'pageMenu') renderMenu();
         }
 
-        renderMenu();
+        // Initialize Menu
+        setTimeout(renderMenu, 500); // Small delay to ensure Supabase is ready
     </script>
 </body>
 </html>
