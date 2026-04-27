@@ -332,11 +332,15 @@
         }
 
         async function saveImagePosition(id, pos) {
-            await _supabase.from('recipes').update({ img_pos: parseInt(pos) }).eq('id', id);
-            // Update cache
-            if (recipesCache) {
-                const r = recipesCache.find(rec => rec.id === id);
-                if (r) r.img_pos = parseInt(pos);
+            const { error } = await _supabase.from('recipes').update({ img_pos: parseInt(pos) }).eq('id', id).select();
+            if (error) {
+                console.error('Error saving image position:', error.message);
+            } else {
+                // Update cache
+                if (recipesCache) {
+                    const r = recipesCache.find(rec => rec.id === id);
+                    if (r) r.img_pos = parseInt(pos);
+                }
             }
         }
 
