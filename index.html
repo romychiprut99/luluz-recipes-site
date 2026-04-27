@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ספר המתכונים של לולוז</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        theme: {
+                            DEFAULT: '#a1ad95',
+                            light: '#f1f3ee',
+                            dark: '#85907a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Assistant', sans-serif; background-color: #ffffff; direction: rtl; }
+        .white-space-pre { white-space: pre-wrap; }
+        .page { display: none; }
+        .page.active { display: block; }
+    </style>
+</head>
+<body class="text-gray-900">
+
+    <div id="pageMenu" class="page active">
+        <header class="py-12 border-b border-gray-100 bg-theme-light/50">
+            <div class="max-w-6xl mx-auto px-6 flex justify-between items-center">
+                <h1 class="text-4xl font-bold text-theme">המתכונים של לולוז</h1>
+                <button onclick="navigateTo('pageCreate')" class="bg-theme text-white w-12 h-12 rounded-full shadow-lg hover:bg-theme-dark transition flex items-center justify-center text-3xl font-light">
+                    +
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-6 py-12">
+            <div id="menuGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                </div>
+        </main>
+    </div>
+
+    <div id="pageCreate" class="page bg-theme-light/20 min-h-screen">
+        <div class="max-w-4xl mx-auto px-6 py-12">
+            <button onclick="navigateTo('pageMenu')" class="mb-6 text-gray-500 hover:text-theme flex items-center gap-2">
+                <span>→</span> ביטול וחזרה
+            </button>
+
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-theme-light">
+                <h2 class="text-3xl font-bold text-theme mb-8">יצירת מתכון חדש</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">שם המנה</label>
+                            <input type="text" id="title" class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">קטגוריה</label>
+                            <input type="text" id="category" class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">תמונה</label>
+                            <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-gray-500 file:bg-theme file:text-white file:border-0 file:rounded-full file:px-4 file:py-2">
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">מצרכים</label>
+                            <textarea id="ingredients" class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme bg-gray-50 h-32"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">שלבי הכנה</label>
+                            <textarea id="steps" class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme bg-gray-50 h-32"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="processAndSave()" class="w-full mt-10 bg-theme text-white font-bold py-5 rounded-2xl hover:bg-theme-dark transition text-xl shadow-xl shadow-theme/20">
+                    שמור מתכון ופרסם
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pageView" class="page min-h-screen">
+        <div class="max-w-4xl mx-auto px-6 py-12">
+            <button onclick="navigateTo('pageMenu')" class="mb-8 text-theme font-bold flex items-center gap-2 hover:translate-x-1 transition-transform">
+                <span>→</span> חזרה לתפריט
+            </button>
+            <div id="viewContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let db;
+        const request = indexedDB.open("RecipeAppDB", 1);
+
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore("recipes", { keyPath: "id", autoIncrement: true });
+        };
+
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            renderMenu();
+        };
+
+        // Navigation Logic
+        function navigateTo(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo(0,0);
+            if(pageId === 'pageMenu') renderMenu();
+        }
+
+        // Data Logic
+        function processAndSave() {
+            const file = document.getElementById('imageFile').files[0];
+            const title = document.getElementById('title').value;
+            if(!title) return alert("חובה להזין שם למתכון");
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => saveToDB(reader.result);
+                reader.readAsDataURL(file);
+            } else {
+                saveToDB('https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800');
+            }
+        }
+
+        function saveToDB(imageData) {
+            const transaction = db.transaction(["recipes"], "readwrite");
+            const store = transaction.objectStore("recipes");
+            const recipe = {
+                title: document.getElementById('title').value,
+                cat: document.getElementById('category').value || 'כללי',
+                ingredients: document.getElementById('ingredients').value,
+                steps: document.getElementById('steps').value,
+                img: imageData,
+                date: Date.now()
+            };
+            store.add(recipe);
+            transaction.oncomplete = () => {
+                // Reset fields
+                document.getElementById('title').value = '';
+                document.getElementById('ingredients').value = '';
+                document.getElementById('steps').value = '';
+                document.getElementById('imageFile').value = '';
+                // Go back home
+                navigateTo('pageMenu');
+            };
+        }
+
+        function renderMenu() {
+            const grid = document.getElementById('menuGrid');
+            const transaction = db.transaction(["recipes"], "readonly");
+            const store = transaction.objectStore("recipes");
+            const getAll = store.getAll();
+
+            getAll.onsuccess = () => {
+                const recipes = getAll.result;
+                if (recipes.length === 0) {
+                    grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">לחץ על ה- + למעלה כדי להוסיף מתכון ראשון</p>`;
+                    return;
+                }
+                grid.innerHTML = recipes.map(r => `
+                    <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer group" onclick="viewRecipe(${r.id})">
+                        <div class="relative h-64 overflow-hidden">
+                            <img src="${r.img}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <button onclick="deleteRecipe(event, ${r.id})" class="absolute top-4 left-4 bg-white/80 p-2 rounded-full hover:bg-red-500 hover:text-white transition shadow-sm">✕</button>
+                        </div>
+                        <div class="p-6">
+                            <span class="text-theme text-xs font-bold uppercase tracking-widest">${r.cat}</span>
+                            <h3 class="text-2xl mt-1 font-bold text-gray-800">${r.title}</h3>
+                        </div>
+                    </div>
+                `).join('');
+            };
+        }
+
+        function viewRecipe(id) {
+            const transaction = db.transaction(["recipes"], "readonly");
+            const store = transaction.objectStore("recipes");
+            store.get(id).onsuccess = (e) => {
+                const r = e.target.result;
+                document.getElementById('viewContent').innerHTML = `
+                    <div class="relative h-[450px] w-full mb-12">
+                        <img src="${r.img}" class="w-full h-full object-cover rounded-[40px] shadow-2xl">
+                    </div>
+                    <div class="flex flex-col mb-12">
+                        <span class="text-theme font-bold text-lg mb-2">${r.cat}</span>
+                        <h1 class="text-6xl font-bold text-gray-900 leading-tight">${r.title}</h1>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
+                        <div class="bg-theme-light/40 p-10 rounded-[32px]">
+                            <h3 class="text-2xl mb-6 text-theme-dark font-bold border-b border-theme/20 pb-4">🛒 מצרכים</h3>
+                            <p class="white-space-pre text-gray-800 leading-relaxed text-xl font-light">${r.ingredients}</p>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl mb-6 text-gray-700 font-bold border-b border-gray-100 pb-4">👨‍🍳 שלבי הכנה</h3>
+                            <p class="white-space-pre text-gray-800 leading-relaxed text-xl font-light">${r.steps}</p>
+                        </div>
+                    </div>
+                `;
+                navigateTo('pageView');
+            };
+        }
+
+        function deleteRecipe(e, id) {
+            e.stopPropagation();
+            if(confirm('למחוק את המתכון לצמיתות?')) {
+                const transaction = db.transaction(["recipes"], "readwrite");
+                transaction.objectStore("recipes").delete(id);
+                transaction.oncomplete = () => renderMenu();
+            }
+        }
+    </script>
+</body>
+</html>
