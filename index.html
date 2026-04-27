@@ -85,6 +85,7 @@
         // --- STATE ---
         let editingRecipeId = null; // Tracks whether we're editing an existing recipe
         let editingRecipeImg = null; // Stores the current image when editing
+        let recipesCache = null; // Local cache of all recipes
 
         // --- SLUG UTILITIES ---
         function toSlug(title) {
@@ -115,11 +116,18 @@
             document.getElementById('fileName').innerText = name;
         }
 
+        async function fetchAllRecipes(forceRefresh = false) {
+            if (recipesCache && !forceRefresh) return recipesCache;
+            const { data: recipes } = await _supabase.from('recipes').select('*').order('created_at', { ascending: false });
+            recipesCache = recipes || [];
+            return recipesCache;
+        }
+
         async function renderMenu() {
             const grid = document.getElementById('menuGrid');
-            const { data: recipes, error } = await _supabase.from('recipes').select('*').order('created_at', { ascending: false });
+            const recipes = await fetchAllRecipes();
 
-            if (!recipes || recipes.length === 0) {
+            if (recipes.length === 0) {
                 grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">אין מתכונים עדיין. לחץ על ה- + למעלה!</p>`;
                 return;
             }
@@ -241,7 +249,8 @@
                 document.getElementById('saveBtn').disabled = false;
                 document.getElementById('saveBtn').innerText = "נסה שוב";
             } else {
-                // Clear state and fields
+                // Invalidate cache and clear state
+                recipesCache = null;
                 editingRecipeId = null;
                 editingRecipeImg = null;
                 document.getElementById('title').value = '';
@@ -261,7 +270,13 @@
         }
 
         async function viewRecipe(id) {
-            const { data: r } = await _supabase.from('recipes').select('*').eq('id', id).single();
+            const recipes = await fetchAllRecipes();
+            let r = recipes.find(rec => rec.id === id);
+            if (!r) {
+                // Not in cache, try fetching directly
+                const { data } = await _supabase.from('recipes').select('*').eq('id', id).single();
+                r = data;
+            }
             if (!r) return navigateTo('pageMenu');
 
             // Update URL hash to recipe slug
@@ -292,7 +307,7 @@
                         </button>
                     </div>
                 </div>
-                <img src="${r.img}" class="w-full h-96 object-cover rounded-[3rem] shadow-xl mb-10">
+                <img src="${r.img}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl mb-10">
                 <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div class="bg-theme-light/40 p-10 rounded-[2.5rem]">
@@ -309,7 +324,8 @@
         }
 
         async function editRecipe(id) {
-            const { data: r } = await _supabase.from('recipes').select('*').eq('id', id).single();
+            const recipes = await fetchAllRecipes();
+            const r = recipes.find(rec => rec.id === id);
             if (!r) return alert('מתכון לא נמצא');
             openEditForm(r);
         }
@@ -320,6 +336,7 @@
             if (error) {
                 alert('שגיאה במחיקה: ' + error.message);
             } else {
+                recipesCache = null; // Invalidate cache
                 navigateTo('pageMenu');
             }
         }
@@ -352,9 +369,10 @@
 
         async function viewRecipeBySlug(slug) {
             const title = fromSlug(slug);
-            const { data: recipes } = await _supabase.from('recipes').select('*').ilike('title', title);
-            if (recipes && recipes.length > 0) {
-                await viewRecipe(recipes[0].id);
+            const recipes = await fetchAllRecipes();
+            const r = recipes.find(rec => rec.title.trim().toLowerCase() === title.trim().toLowerCase());
+            if (r) {
+                await viewRecipe(r.id);
             } else {
                 navigateTo('pageMenu');
             }
@@ -368,7 +386,7 @@
             if (pageId === 'pageMenu') {
                 history.replaceState(null, '', window.location.pathname);
                 document.title = 'ספר המתכונים של לולוז';
-                renderMenu();
+                renderMenu(); // Uses cache if available
             }
         }
 
@@ -384,10 +402,8 @@
 
         window.addEventListener('hashchange', handleRoute);
 
-        // Initialize — check URL hash on load
-        setTimeout(() => {
-            handleRoute();
-        }, 500); // Small delay to ensure Supabase is ready
+        // Initialize — no delay needed, Supabase client is ready synchronously
+        handleRoute();
     </script>
 </body>
 </html>
