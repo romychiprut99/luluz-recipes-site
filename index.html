@@ -20,6 +20,8 @@
         /* Smooth loading spinner */
         .loader { border-top-color: #c4704b; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Vertical range slider */
+        .img-pos-slider { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 100px; cursor: pointer; }
     </style>
 </head>
 <body class="text-gray-900">
@@ -133,7 +135,7 @@
             }
             grid.innerHTML = recipes.map(r => `
                 <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer relative group" onclick="viewRecipe(${r.id})">
-                    <img src="${r.img}" class="h-64 w-full object-cover">
+                    <img src="${r.img}" class="h-64 w-full object-cover" style="object-position: center ${r.img_pos || 50}%">
                     <div class="p-6">
                         <span class="text-theme text-xs font-bold uppercase tracking-widest">${r.cat}</span>
                         <h3 class="text-2xl mt-1 font-bold text-gray-800">${r.title}</h3>
@@ -307,7 +309,13 @@
                         </button>
                     </div>
                 </div>
-                <img src="${r.img}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl mb-10">
+                <div class="relative group/img mb-10">
+                    <img id="recipeImg" src="${r.img}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl" style="object-position: center ${r.img_pos || 50}%">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center gap-1 bg-white/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg">
+                        <span class="text-xs text-gray-500 mb-1">📷</span>
+                        <input type="range" min="0" max="100" value="${r.img_pos || 50}" orient="vertical" class="img-pos-slider accent-[#c4704b]" oninput="document.getElementById('recipeImg').style.objectPosition = 'center ' + this.value + '%'" onchange="saveImagePosition(${r.id}, this.value)">
+                    </div>
+                </div>
                 <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div class="bg-theme-light p-10 rounded-[2.5rem] border border-theme/20">
@@ -321,6 +329,15 @@
                 </div>
             `;
             navigateTo('pageView');
+        }
+
+        async function saveImagePosition(id, pos) {
+            await _supabase.from('recipes').update({ img_pos: parseInt(pos) }).eq('id', id);
+            // Update cache
+            if (recipesCache) {
+                const r = recipesCache.find(rec => rec.id === id);
+                if (r) r.img_pos = parseInt(pos);
+            }
         }
 
         async function editRecipe(id) {
