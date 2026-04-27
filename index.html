@@ -9,16 +9,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
-            theme: { extend: { colors: { theme: { DEFAULT: '#a1ad95', light: '#f1f3ee', dark: '#85907a' } } } }
+            theme: { extend: { colors: { theme: { DEFAULT: '#c4704b', light: '#fdf6f0', dark: '#a85a3a' } } } }
         }
     </script>
     <style>
-        body { font-family: 'Assistant', sans-serif; background-color: #ffffff; direction: rtl; }
+        body { font-family: 'Assistant', sans-serif; background-color: #fefcf9; direction: rtl; }
         .white-space-pre { white-space: pre-wrap; }
         .page { display: none; }
         .page.active { display: block; }
         /* Smooth loading spinner */
-        .loader { border-top-color: #a1ad95; animation: spinner 1.5s linear infinite; }
+        .loader { border-top-color: #c4704b; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -102,7 +102,7 @@
                 if (line.trimStart().startsWith('*')) {
                     const content = line.replace(/^\s*\*\s?/, '');
                     return `<label class="flex items-start gap-3 cursor-pointer group py-1">
-                        <input type="checkbox" class="mt-1.5 w-5 h-5 rounded border-gray-300 text-theme focus:ring-theme cursor-pointer accent-[#a1ad95]" onchange="this.parentElement.classList.toggle('line-through'); this.parentElement.classList.toggle('text-gray-400')">
+                        <input type="checkbox" class="mt-1.5 w-5 h-5 rounded border-gray-300 text-theme focus:ring-theme cursor-pointer accent-[#c4704b]" onchange="this.parentElement.classList.toggle('line-through'); this.parentElement.classList.toggle('text-gray-400')">
                         <span class="transition-all">${content}</span>
                     </label>`;
                 }
@@ -310,7 +310,7 @@
                 <img src="${r.img}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl mb-10">
                 <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div class="bg-theme-light/40 p-10 rounded-[2.5rem]">
+                    <div class="bg-theme-light p-10 rounded-[2.5rem] border border-theme/20">
                         <h3 class="text-2xl font-bold mb-4 text-theme-dark">🛒 מצרכים</h3>
                         <div class="text-xl leading-relaxed space-y-1">${formatText(r.ingredients)}</div>
                     </div>
