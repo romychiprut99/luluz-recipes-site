@@ -22,6 +22,12 @@
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         /* Vertical range slider */
         .img-pos-slider { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 100px; cursor: pointer; }
+        /* Prevent iOS Safari from zooming when focusing inputs (font-size must be >=16px) */
+        input, textarea, select { font-size: 16px; }
+        /* Custom category dropdown items */
+        #categoryDropdown li { padding: 12px 16px; cursor: pointer; transition: background-color 0.15s; }
+        #categoryDropdown li:hover, #categoryDropdown li.active { background-color: #fdf6f0; }
+        #categoryDropdown li.new-item { color: #c4704b; font-weight: 600; border-top: 1px solid #f3f3f3; }
     </style>
 </head>
 <body class="text-gray-900">
@@ -53,8 +59,13 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
                         <input type="text" id="title" placeholder="שם המנה" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
-                        <input type="text" id="category" list="categoryOptions" autocomplete="off" placeholder="קטגוריה (בחרי מהרשימה או הקלידי חדשה)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
-                        <datalist id="categoryOptions"></datalist>
+                        <div class="relative">
+                            <input type="text" id="category" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="קטגוריה (בחרי מהרשימה או הקלידי חדשה)" class="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all" oninput="filterCategoryOptions()" onfocus="openCategoryDropdown()">
+                            <button type="button" tabindex="-1" onclick="toggleCategoryDropdown(event)" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-theme/70 hover:text-theme">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <ul id="categoryDropdown" class="hidden absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-lg"></ul>
+                        </div>
                         <div class="p-4 border-2 border-dashed border-theme-light rounded-2xl bg-gray-50 text-center">
                             <label class="cursor-pointer block">
                                 <span id="fileName" class="text-gray-500 text-sm">לחץ לבחירת תמונה מהגלריה</span>
@@ -205,12 +216,96 @@
         }
 
         // --- CREATE / EDIT FORM ---
+        let availableCategories = [];
+
         async function populateCategoryOptions() {
             const recipes = await fetchAllRecipes();
-            const categories = [...new Set(recipes.map(r => r.cat || 'כללי').filter(Boolean))].sort();
-            const datalist = document.getElementById('categoryOptions');
-            datalist.innerHTML = categories.map(c => `<option value="${c.replace(/"/g, '&quot;')}"></option>`).join('');
+            availableCategories = [...new Set(recipes.map(r => r.cat || 'כללי').filter(Boolean))].sort();
+            renderCategoryDropdown('');
         }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        }
+
+        function renderCategoryDropdown(query) {
+            const dropdown = document.getElementById('categoryDropdown');
+            const q = (query || '').trim().toLowerCase();
+            const matches = availableCategories.filter(c => c.toLowerCase().includes(q));
+            const exactMatch = availableCategories.some(c => c.toLowerCase() === q);
+
+            const handler = (val) => `onmousedown="selectCategoryOption(event, '${val}')" ontouchstart="selectCategoryOption(event, '${val}')"`;
+
+            let html = matches.map(c => {
+                const safe = escapeHtml(c).replace(/'/g, "\\'");
+                return `<li ${handler(safe)}>${escapeHtml(c)}</li>`;
+            }).join('');
+
+            // If the user typed something that doesn't exactly match an existing category, offer to use it as new
+            if (q && !exactMatch) {
+                const safe = escapeHtml(query.trim()).replace(/'/g, "\\'");
+                html += `<li class="new-item" ${handler(safe)}>+ הוסיפי קטגוריה חדשה: "${escapeHtml(query.trim())}"</li>`;
+            }
+
+            if (!html) {
+                html = `<li class="text-gray-400 italic" style="cursor:default">אין קטגוריות עדיין — הקלידי שם חדש</li>`;
+            }
+
+            dropdown.innerHTML = html;
+        }
+
+        function openCategoryDropdown() {
+            const dropdown = document.getElementById('categoryDropdown');
+            renderCategoryDropdown(document.getElementById('category').value);
+            dropdown.classList.remove('hidden');
+        }
+
+        function closeCategoryDropdown() {
+            document.getElementById('categoryDropdown').classList.add('hidden');
+        }
+
+        function toggleCategoryDropdown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropdown = document.getElementById('categoryDropdown');
+            const input = document.getElementById('category');
+            if (dropdown.classList.contains('hidden')) {
+                input.focus();
+                openCategoryDropdown();
+            } else {
+                closeCategoryDropdown();
+            }
+        }
+
+        function filterCategoryOptions() {
+            renderCategoryDropdown(document.getElementById('category').value);
+            document.getElementById('categoryDropdown').classList.remove('hidden');
+        }
+
+        function selectCategoryOption(e, value) {
+            // Use mousedown/touchstart so the click registers before the input loses focus on iOS
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            document.getElementById('category').value = value;
+            closeCategoryDropdown();
+        }
+
+        // Close dropdown when tapping outside (works for both mouse and touch / iOS)
+        document.addEventListener('mousedown', (e) => {
+            const input = document.getElementById('category');
+            const dropdown = document.getElementById('categoryDropdown');
+            if (!input || !dropdown) return;
+            if (!input.contains(e.target) && !dropdown.contains(e.target) && !e.target.closest('button[onclick*="toggleCategoryDropdown"]')) {
+                closeCategoryDropdown();
+            }
+        });
+        document.addEventListener('touchstart', (e) => {
+            const input = document.getElementById('category');
+            const dropdown = document.getElementById('categoryDropdown');
+            if (!input || !dropdown) return;
+            if (!input.contains(e.target) && !dropdown.contains(e.target) && !e.target.closest('button[onclick*="toggleCategoryDropdown"]')) {
+                closeCategoryDropdown();
+            }
+        }, { passive: true });
 
         async function openCreateForm() {
             editingRecipeId = null;
