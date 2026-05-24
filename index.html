@@ -53,7 +53,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
                         <input type="text" id="title" placeholder="שם המנה" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
-                        <input type="text" id="category" placeholder="קטגוריה (למשל: עיקריות)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
+                        <input type="text" id="category" list="categoryOptions" autocomplete="off" placeholder="קטגוריה (בחרי מהרשימה או הקלידי חדשה)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
+                        <datalist id="categoryOptions"></datalist>
                         <div class="p-4 border-2 border-dashed border-theme-light rounded-2xl bg-gray-50 text-center">
                             <label class="cursor-pointer block">
                                 <span id="fileName" class="text-gray-500 text-sm">לחץ לבחירת תמונה מהגלריה</span>
@@ -204,7 +205,14 @@
         }
 
         // --- CREATE / EDIT FORM ---
-        function openCreateForm() {
+        async function populateCategoryOptions() {
+            const recipes = await fetchAllRecipes();
+            const categories = [...new Set(recipes.map(r => r.cat || 'כללי').filter(Boolean))].sort();
+            const datalist = document.getElementById('categoryOptions');
+            datalist.innerHTML = categories.map(c => `<option value="${c.replace(/"/g, '&quot;')}"></option>`).join('');
+        }
+
+        async function openCreateForm() {
             editingRecipeId = null;
             editingRecipeImg = null;
             document.getElementById('formTitle').innerText = 'הוספת מתכון חדש';
@@ -217,10 +225,11 @@
             document.getElementById('currentImagePreview').classList.add('hidden');
             document.getElementById('saveBtn').innerText = 'שמור מתכון ופרסם';
             document.getElementById('saveBtn').disabled = false;
+            await populateCategoryOptions();
             navigateTo('pageCreate');
         }
 
-        function openEditForm(recipe) {
+        async function openEditForm(recipe) {
             editingRecipeId = recipe.id;
             editingRecipeImg = recipe.img;
             document.getElementById('formTitle').innerText = 'עריכת מתכון';
@@ -235,6 +244,7 @@
             document.getElementById('currentImagePreview').classList.remove('hidden');
             document.getElementById('saveBtn').innerText = 'שמור שינויים';
             document.getElementById('saveBtn').disabled = false;
+            await populateCategoryOptions();
             navigateTo('pageCreate');
         }
 
