@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ספר המתכונים של לולוז</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -17,26 +17,14 @@
         .white-space-pre { white-space: pre-wrap; }
         .page { display: none; }
         .page.active { display: block; }
-        /* Smooth loading spinner */
-        .loader { border-top-color: #c4704b; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Vertical range slider */
-        .img-pos-slider { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 100px; cursor: pointer; }
         /* Prevent iOS Safari from zooming when focusing inputs (font-size must be >=16px) */
         input, textarea, select { font-size: 16px; }
         /* Skeleton shimmer for loading cards */
         .skeleton { background: linear-gradient(90deg, #f3f0eb 0%, #faf6f0 50%, #f3f0eb 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        /* Fade-in when image finishes loading (only for placeholders) */
         .card-img { background-color: #f3f0eb; }
-        .card-img[data-recipe-id] { opacity: 0; transition: opacity 0.35s ease-in; }
-        .card-img.loaded { opacity: 1; }
         /* Cards hidden by category/search filters */
         .recipe-card.hidden-card { display: none; }
-        /* Custom category dropdown items */
-        #categoryDropdown li { padding: 12px 16px; cursor: pointer; transition: background-color 0.15s; }
-        #categoryDropdown li:hover, #categoryDropdown li.active { background-color: #fdf6f0; }
-        #categoryDropdown li.new-item { color: #c4704b; font-weight: 600; border-top: 1px solid #f3f3f3; }
     </style>
 </head>
 <body class="text-gray-900">
@@ -45,7 +33,6 @@
         <header class="py-12 border-b border-gray-100 bg-theme-light/50">
             <div class="max-w-6xl mx-auto px-6 flex justify-between items-center">
                 <h1 class="text-4xl font-bold text-theme cursor-pointer" onclick="navigateTo('pageMenu')">המתכונים של לולוז</h1>
-                <button onclick="openCreateForm()" class="bg-theme text-white w-14 h-14 rounded-full shadow-lg hover:bg-theme-dark transition flex items-center justify-center text-4xl font-light">+</button>
             </div>
         </header>
         <main class="max-w-6xl mx-auto px-6 py-12">
@@ -60,42 +47,6 @@
         </main>
     </div>
 
-    <div id="pageCreate" class="page bg-theme-light/20 min-h-screen">
-        <div class="max-w-4xl mx-auto px-6 py-12">
-            <button onclick="cancelForm()" class="mb-6 text-gray-500 flex items-center gap-2 hover:text-theme transition"><span>→</span> ביטול וחזרה</button>
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-theme-light">
-                <h2 id="formTitle" class="text-3xl font-bold text-theme mb-8 text-center">הוספת מתכון חדש</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <input type="text" id="title" placeholder="שם המנה" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all">
-                        <div class="relative">
-                            <input type="text" id="category" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="קטגוריה (בחרי מהרשימה או הקלידי חדשה)" class="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme transition-all" oninput="filterCategoryOptions()" onfocus="openCategoryDropdown()">
-                            <button type="button" tabindex="-1" onclick="toggleCategoryDropdown(event)" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-theme/70 hover:text-theme">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <ul id="categoryDropdown" class="hidden absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-lg"></ul>
-                        </div>
-                        <div class="p-4 border-2 border-dashed border-theme-light rounded-2xl bg-gray-50 text-center">
-                            <label class="cursor-pointer block">
-                                <span id="fileName" class="text-gray-500 text-sm">לחץ לבחירת תמונה מהגלריה</span>
-                                <input type="file" id="imageFile" accept="image/*" class="hidden" onchange="updateFileName(this)">
-                            </label>
-                        </div>
-                        <div id="currentImagePreview" class="hidden">
-                            <p class="text-sm text-gray-500 mb-2">תמונה נוכחית:</p>
-                            <img id="currentImage" class="w-full h-32 object-cover rounded-xl">
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <textarea id="ingredients" placeholder="מצרכים..." class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme h-32"></textarea>
-                        <textarea id="steps" placeholder="שלבי הכנה..." class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-theme h-32"></textarea>
-                    </div>
-                </div>
-                <button id="saveBtn" onclick="processAndSave()" class="w-full mt-8 bg-theme text-white font-bold py-5 rounded-2xl hover:bg-theme-dark transition-all text-xl shadow-lg shadow-theme/20">שמור מתכון ופרסם</button>
-            </div>
-        </div>
-    </div>
-
     <div id="pageView" class="page min-h-screen">
         <div class="max-w-4xl mx-auto px-6 py-12">
             <button onclick="navigateTo('pageMenu')" class="mb-8 text-theme font-bold flex items-center gap-2"><span>→</span> חזרה לתפריט</button>
@@ -105,55 +56,16 @@
 
     <script>
         // --- CONFIGURATION ---
-        const SUPABASE_URL = 'https://ydyzgkjawrbyitahmwtu.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_VC_Xm-WhVxpyUg7RTKAAnQ_A_ZWHpQu';
-
-        // Correct initialization
-        const { createClient } = supabase;
-        const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Recipes are read from static YAML files in the ./recipes/ folder.
+        // recipes/index.json lists the YAML filenames (one recipe per file).
+        const RECIPES_DIR = 'recipes';
+        const RECIPES_MANIFEST = RECIPES_DIR + '/index.json';
 
         // --- STATE ---
-        let editingRecipeId = null; // Tracks whether we're editing an existing recipe
-        let editingRecipeImg = null; // Stores the current image when editing
-        let recipesListCache = null; // Lightweight list (no image bytes) used for the menu
-        let recipeImgCache = {}; // id -> img (base64), fetched lazily per card
-        let fullRecipeCache = {}; // id -> full row, fetched when viewing a single recipe
+        let recipesCache = null;    // Array of loaded recipe objects
+        let recipesById = {};       // id -> recipe object
         let activeCategory = 'all'; // Currently selected category filter
-        let searchQuery = ''; // Currently typed search query
-
-        const LIST_STORAGE_KEY = 'recipes_list_v1';
-        const IMG_STORAGE_KEY  = 'recipes_imgs_v1';
-        // ~4.5 MB cap for the image cache in localStorage (most browsers allow ~5MB).
-        const IMG_STORAGE_BUDGET = 4_500_000;
-
-        // Load any persisted caches up front so the very first paint can be instant.
-        try {
-            const persistedList = localStorage.getItem(LIST_STORAGE_KEY);
-            if (persistedList) recipesListCache = JSON.parse(persistedList);
-            const persistedImgs = localStorage.getItem(IMG_STORAGE_KEY);
-            if (persistedImgs) recipeImgCache = JSON.parse(persistedImgs);
-        } catch (_) { /* ignore corrupt cache */ }
-
-        function persistList() {
-            try { localStorage.setItem(LIST_STORAGE_KEY, JSON.stringify(recipesListCache || [])); } catch (_) {}
-        }
-        function persistImgs() {
-            try {
-                // Trim cache if it grew too big — keep most recently used by recipe id order
-                let json = JSON.stringify(recipeImgCache);
-                if (json.length > IMG_STORAGE_BUDGET) {
-                    const ids = Object.keys(recipeImgCache);
-                    while (json.length > IMG_STORAGE_BUDGET && ids.length > 0) {
-                        delete recipeImgCache[ids.shift()];
-                        json = JSON.stringify(recipeImgCache);
-                    }
-                }
-                localStorage.setItem(IMG_STORAGE_KEY, json);
-            } catch (_) {
-                // Storage may be full — drop the cache silently
-                try { localStorage.removeItem(IMG_STORAGE_KEY); } catch (_) {}
-            }
-        }
+        let searchQuery = '';       // Currently typed search query
 
         // --- SLUG UTILITIES ---
         function toSlug(title) {
@@ -179,82 +91,67 @@
             }).join('');
         }
 
-        function updateFileName(input) {
-            const name = input.files[0]?.name || "לחץ לבחירת תמונה מהגלריה";
-            document.getElementById('fileName').innerText = name;
-        }
+        // --- LOADING RECIPES FROM YAML FILES ---
+        // Reads the manifest, then fetches & parses every YAML file it lists.
+        // Each recipe gets a stable id derived from its filename (slug).
+        async function loadRecipes({ forceRefresh = false } = {}) {
+            if (recipesCache && !forceRefresh) return recipesCache;
 
-        // Lightweight list — no image bytes. This is what the menu grid needs.
-        // Returns cached list immediately if available, but also kicks off a
-        // background refresh so the UI stays fresh (stale-while-revalidate).
-        async function fetchRecipeList({ forceRefresh = false } = {}) {
-            if (recipesListCache && !forceRefresh) {
-                // Background refresh — no await; refresh menu silently when it arrives.
-                refreshListInBackground();
-                return recipesListCache;
-            }
-            const { data, error } = await _supabase
-                .from('recipes')
-                .select('id, title, cat, img_pos, created_at')
-                .order('created_at', { ascending: false });
-            if (error) {
-                console.error('list fetch error:', error.message);
-                return recipesListCache || [];
-            }
-            recipesListCache = data || [];
-            persistList();
-            return recipesListCache;
-        }
-
-        let _bgRefreshInFlight = false;
-        async function refreshListInBackground() {
-            if (_bgRefreshInFlight) return;
-            _bgRefreshInFlight = true;
+            let files;
             try {
-                const { data } = await _supabase
-                    .from('recipes')
-                    .select('id, title, cat, img_pos, created_at')
-                    .order('created_at', { ascending: false });
-                if (!data) return;
-                const before = JSON.stringify(recipesListCache || []);
-                const after = JSON.stringify(data);
-                if (before !== after) {
-                    recipesListCache = data;
-                    persistList();
-                    // Re-render only if user is still on the menu page
-                    if (document.getElementById('pageMenu').classList.contains('active')) {
-                        renderMenu();
-                    }
-                }
-            } finally {
-                _bgRefreshInFlight = false;
+                const res = await fetch(RECIPES_MANIFEST, { cache: 'no-cache' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                files = await res.json();
+            } catch (e) {
+                console.error('Failed to load recipes manifest:', e);
+                recipesCache = [];
+                return recipesCache;
             }
+
+            if (!Array.isArray(files)) {
+                console.error('recipes/index.json must be an array of filenames');
+                recipesCache = [];
+                return recipesCache;
+            }
+
+            const results = await Promise.all(files.map(loadSingleRecipe));
+            const recipes = results.filter(Boolean);
+
+            // Sort alphabetically by title (Hebrew-aware) for a stable order.
+            recipes.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'he'));
+
+            recipesCache = recipes;
+            recipesById = {};
+            recipes.forEach(r => { recipesById[r.id] = r; });
+            return recipesCache;
         }
 
-        // Lazy-load just one recipe's image (small targeted query).
-        async function fetchRecipeImage(id) {
-            if (recipeImgCache[id]) return recipeImgCache[id];
-            const { data } = await _supabase.from('recipes').select('img').eq('id', id).single();
-            if (data && data.img) {
-                recipeImgCache[id] = data.img;
-                persistImgs();
-                return data.img;
+        async function loadSingleRecipe(filename) {
+            try {
+                const res = await fetch(RECIPES_DIR + '/' + filename, { cache: 'no-cache' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const text = await res.text();
+                const data = jsyaml.load(text) || {};
+                const id = filename.replace(/\.ya?ml$/i, '');
+                return {
+                    id,
+                    title: data.title || id,
+                    cat: data.cat || 'כללי',
+                    ingredients: data.ingredients || '',
+                    steps: data.steps || '',
+                    img: data.img || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800',
+                    img_pos: (data.img_pos != null) ? data.img_pos : 50,
+                };
+            } catch (e) {
+                console.error('Failed to load recipe "' + filename + '":', e);
+                return null;
             }
-            return null;
-        }
-
-        // Full recipe (used by the view page and edit form).
-        async function fetchRecipeFull(id) {
-            if (fullRecipeCache[id]) return fullRecipeCache[id];
-            const { data } = await _supabase.from('recipes').select('*').eq('id', id).single();
-            if (data) fullRecipeCache[id] = data;
-            return data;
         }
 
         function selectCategory(cat) {
             activeCategory = cat;
             // Update tab highlighting without rebuilding the grid
-            if (recipesListCache) renderCategoryTabs(recipesListCache);
+            if (recipesCache) renderCategoryTabs(recipesCache);
             applyCardFilters();
         }
 
@@ -285,22 +182,14 @@
         let _renderedRecipeIds = null;
 
         function cardHTML(r) {
-            const cachedImg = recipeImgCache[r.id];
-            const imgAttr = cachedImg
-                ? `src="${cachedImg}" class="card-img h-64 w-full object-cover"`
-                : `data-recipe-id="${r.id}" class="card-img h-64 w-full object-cover skeleton" alt="" loading="lazy" decoding="async"`;
+            const idAttr = escapeHtml(r.id).replace(/'/g, "\\'");
             return `
-                <div class="recipe-card bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer relative group" data-id="${r.id}" data-cat="${escapeHtml(r.cat || 'כללי')}" data-title="${escapeHtml((r.title || '').toLowerCase())}" onclick="viewRecipe(${r.id})">
-                    <img ${imgAttr} style="object-position: center ${r.img_pos || 50}%">
+                <div class="recipe-card bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer relative group" data-cat="${escapeHtml(r.cat || 'כללי')}" data-title="${escapeHtml((r.title || '').toLowerCase())}" onclick="viewRecipe('${idAttr}')">
+                    <img src="${escapeHtml(r.img)}" class="card-img h-64 w-full object-cover" loading="lazy" decoding="async" style="object-position: center ${r.img_pos || 50}%">
                     <div class="p-6">
                         <span class="text-theme text-xs font-bold uppercase tracking-widest">${escapeHtml(r.cat || '')}</span>
                         <h3 class="text-2xl mt-1 font-bold text-gray-800">${escapeHtml(r.title || '')}</h3>
                     </div>
-                    <button onclick="event.stopPropagation(); deleteRecipe(${r.id})" class="absolute top-3 left-3 bg-white/80 backdrop-blur-sm text-red-400 hover:bg-red-500 hover:text-white w-10 h-10 rounded-full shadow-md transition-all flex items-center justify-center opacity-0 group-hover:opacity-100" title="מחיקה">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
                 </div>
             `;
         }
@@ -355,358 +244,44 @@
             const grid = document.getElementById('menuGrid');
             const tabsEl = document.getElementById('categoryTabs');
 
-            // If we have absolutely nothing cached yet, show skeleton cards while the first
-            // network request resolves so the page never looks blank.
-            if (!recipesListCache) {
+            // If we have nothing loaded yet, show skeleton cards while the YAML
+            // files are being fetched so the page never looks blank.
+            if (!recipesCache) {
                 renderSkeletonGrid(6);
             }
 
-            const recipes = await fetchRecipeList();
+            const recipes = await loadRecipes();
 
             if (recipes.length === 0) {
                 tabsEl.innerHTML = '';
                 _renderedRecipeIds = null;
-                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">אין מתכונים עדיין. לחץ על ה- + למעלה!</p>`;
+                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">לא נמצאו מתכונים בתיקייה.</p>`;
                 return;
             }
 
             // Render tabs (cheap — small text-only DOM)
             renderCategoryTabs(recipes);
 
-            // Decide whether we need to rebuild the card DOM. We rebuild only
-            // when the recipe set itself has changed (new/deleted/edited recipe).
+            // Rebuild card DOM only when the recipe set itself has changed.
             const currentIds = recipes.map(r => r.id).join(',');
             if (_renderedRecipeIds !== currentIds) {
                 grid.innerHTML = recipes.map(cardHTML).join('');
                 _renderedRecipeIds = currentIds;
-                scheduleImageLoads();
             }
 
-            // Just toggle visibility — no DOM rebuild, no image re-decode.
+            // Just toggle visibility — no DOM rebuild.
             applyCardFilters();
-        }
-
-        // Observe placeholder <img> elements and fetch their full image only when they
-        // are about to enter the viewport. Falls back to immediate loading if
-        // IntersectionObserver isn't available.
-        let _imgObserver = null;
-        function scheduleImageLoads() {
-            const placeholders = document.querySelectorAll('img.card-img[data-recipe-id]');
-            if (!('IntersectionObserver' in window)) {
-                placeholders.forEach(loadCardImage);
-                return;
-            }
-            if (!_imgObserver) {
-                _imgObserver = new IntersectionObserver((entries) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting) {
-                            _imgObserver.unobserve(entry.target);
-                            loadCardImage(entry.target);
-                        }
-                    });
-                }, { rootMargin: '200px 0px' });
-            }
-            placeholders.forEach(el => _imgObserver.observe(el));
-        }
-
-        async function loadCardImage(imgEl) {
-            const id = parseInt(imgEl.getAttribute('data-recipe-id'));
-            if (!id) return;
-            const src = await fetchRecipeImage(id);
-            if (!src) return;
-            imgEl.src = src;
-            imgEl.removeAttribute('data-recipe-id');
-            imgEl.classList.remove('skeleton');
-            // Trigger fade-in once the browser actually finishes decoding
-            if (imgEl.complete) {
-                imgEl.classList.add('loaded');
-            } else {
-                imgEl.addEventListener('load', () => imgEl.classList.add('loaded'), { once: true });
-            }
-        }
-
-        // --- CREATE / EDIT FORM ---
-        let availableCategories = [];
-
-        async function populateCategoryOptions() {
-            const recipes = await fetchRecipeList();
-            availableCategories = [...new Set(recipes.map(r => r.cat || 'כללי').filter(Boolean))].sort();
-            renderCategoryDropdown('');
         }
 
         function escapeHtml(s) {
             return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
         }
 
-        function renderCategoryDropdown(query) {
-            const dropdown = document.getElementById('categoryDropdown');
-            const q = (query || '').trim().toLowerCase();
-            const matches = availableCategories.filter(c => c.toLowerCase().includes(q));
-            const exactMatch = availableCategories.some(c => c.toLowerCase() === q);
-
-            const handler = (val) => `onmousedown="selectCategoryOption(event, '${val}')" ontouchstart="selectCategoryOption(event, '${val}')"`;
-
-            let html = matches.map(c => {
-                const safe = escapeHtml(c).replace(/'/g, "\\'");
-                return `<li ${handler(safe)}>${escapeHtml(c)}</li>`;
-            }).join('');
-
-            // If the user typed something that doesn't exactly match an existing category, offer to use it as new
-            if (q && !exactMatch) {
-                const safe = escapeHtml(query.trim()).replace(/'/g, "\\'");
-                html += `<li class="new-item" ${handler(safe)}>+ הוסיפי קטגוריה חדשה: "${escapeHtml(query.trim())}"</li>`;
-            }
-
-            if (!html) {
-                html = `<li class="text-gray-400 italic" style="cursor:default">אין קטגוריות עדיין — הקלידי שם חדש</li>`;
-            }
-
-            dropdown.innerHTML = html;
-        }
-
-        function openCategoryDropdown() {
-            const dropdown = document.getElementById('categoryDropdown');
-            renderCategoryDropdown(document.getElementById('category').value);
-            dropdown.classList.remove('hidden');
-        }
-
-        function closeCategoryDropdown() {
-            document.getElementById('categoryDropdown').classList.add('hidden');
-        }
-
-        function toggleCategoryDropdown(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const dropdown = document.getElementById('categoryDropdown');
-            const input = document.getElementById('category');
-            if (dropdown.classList.contains('hidden')) {
-                input.focus();
-                openCategoryDropdown();
-            } else {
-                closeCategoryDropdown();
-            }
-        }
-
-        function filterCategoryOptions() {
-            renderCategoryDropdown(document.getElementById('category').value);
-            document.getElementById('categoryDropdown').classList.remove('hidden');
-        }
-
-        function selectCategoryOption(e, value) {
-            // Use mousedown/touchstart so the click registers before the input loses focus on iOS
-            if (e) { e.preventDefault(); e.stopPropagation(); }
-            document.getElementById('category').value = value;
-            closeCategoryDropdown();
-        }
-
-        // Close dropdown when tapping outside (works for both mouse and touch / iOS)
-        document.addEventListener('mousedown', (e) => {
-            const input = document.getElementById('category');
-            const dropdown = document.getElementById('categoryDropdown');
-            if (!input || !dropdown) return;
-            if (!input.contains(e.target) && !dropdown.contains(e.target) && !e.target.closest('button[onclick*="toggleCategoryDropdown"]')) {
-                closeCategoryDropdown();
-            }
-        });
-        document.addEventListener('touchstart', (e) => {
-            const input = document.getElementById('category');
-            const dropdown = document.getElementById('categoryDropdown');
-            if (!input || !dropdown) return;
-            if (!input.contains(e.target) && !dropdown.contains(e.target) && !e.target.closest('button[onclick*="toggleCategoryDropdown"]')) {
-                closeCategoryDropdown();
-            }
-        }, { passive: true });
-
-        async function openCreateForm() {
-            editingRecipeId = null;
-            editingRecipeImg = null;
-            document.getElementById('formTitle').innerText = 'הוספת מתכון חדש';
-            document.getElementById('title').value = '';
-            document.getElementById('category').value = '';
-            document.getElementById('ingredients').value = '';
-            document.getElementById('steps').value = '';
-            document.getElementById('imageFile').value = '';
-            document.getElementById('fileName').innerText = 'לחץ לבחירת תמונה מהגלריה';
-            document.getElementById('currentImagePreview').classList.add('hidden');
-            document.getElementById('saveBtn').innerText = 'שמור מתכון ופרסם';
-            document.getElementById('saveBtn').disabled = false;
-            await populateCategoryOptions();
-            navigateTo('pageCreate');
-        }
-
-        async function openEditForm(recipe) {
-            editingRecipeId = recipe.id;
-            editingRecipeImg = recipe.img;
-            document.getElementById('formTitle').innerText = 'עריכת מתכון';
-            document.getElementById('title').value = recipe.title;
-            document.getElementById('category').value = recipe.cat || '';
-            document.getElementById('ingredients').value = recipe.ingredients || '';
-            document.getElementById('steps').value = recipe.steps || '';
-            document.getElementById('imageFile').value = '';
-            document.getElementById('fileName').innerText = 'לחץ לבחירת תמונה חדשה (אופציונלי)';
-            // Show current image preview
-            document.getElementById('currentImage').src = recipe.img;
-            document.getElementById('currentImagePreview').classList.remove('hidden');
-            document.getElementById('saveBtn').innerText = 'שמור שינויים';
-            document.getElementById('saveBtn').disabled = false;
-            await populateCategoryOptions();
-            navigateTo('pageCreate');
-        }
-
-        function cancelForm() {
-            editingRecipeId = null;
-            editingRecipeImg = null;
-            navigateTo('pageMenu');
-        }
-
-        // Resize + re-encode a user-picked image as JPEG so we never store huge
-        // base64 blobs in the database. Returns a data URL.
-        function compressImage(file, { maxDim = 1200, quality = 0.82 } = {}) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onerror = reject;
-                reader.onload = () => {
-                    const img = new Image();
-                    img.onerror = reject;
-                    img.onload = () => {
-                        let { width, height } = img;
-                        const scale = Math.min(1, maxDim / Math.max(width, height));
-                        width = Math.round(width * scale);
-                        height = Math.round(height * scale);
-
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        try {
-                            resolve(canvas.toDataURL('image/jpeg', quality));
-                        } catch (e) {
-                            // Fallback if canvas is tainted (shouldn't happen for local files)
-                            resolve(reader.result);
-                        }
-                    };
-                    img.src = reader.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function processAndSave() {
-            const title = document.getElementById('title').value;
-            if(!title) return alert("בבקשה תני שם למתכון!");
-
-            const btn = document.getElementById('saveBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-6 w-6 mx-auto"></div>';
-
-            const file = document.getElementById('imageFile').files[0];
-
-            try {
-                if (file) {
-                    const compressed = await compressImage(file);
-                    await saveToSupabase(compressed);
-                } else if (editingRecipeId && editingRecipeImg) {
-                    // Editing and no new image selected — keep existing image
-                    await saveToSupabase(editingRecipeImg);
-                } else {
-                    // New recipe with no image — use default
-                    await saveToSupabase('https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800');
-                }
-            } catch (e) {
-                console.error(e);
-                alert('שגיאה בעיבוד התמונה: ' + (e?.message || e));
-                btn.disabled = false;
-                btn.innerText = 'נסה שוב';
-            }
-        }
-
-        async function saveToSupabase(img) {
-            const recipeData = {
-                title: document.getElementById('title').value,
-                cat: document.getElementById('category').value || 'כללי',
-                ingredients: document.getElementById('ingredients').value,
-                steps: document.getElementById('steps').value,
-                img: img
-            };
-
-            let error;
-            let savedId = editingRecipeId;
-            let savedRow = null;
-
-            if (editingRecipeId) {
-                // UPDATE existing recipe
-                const result = await _supabase.from('recipes').update(recipeData).eq('id', editingRecipeId).select();
-                error = result.error;
-                if (!error && (!result.data || result.data.length === 0)) {
-                    error = { message: 'העדכון נכשל. ייתכן שחסרות הרשאות UPDATE בטבלה. יש להוסיף RLS policy עבור UPDATE בלוח הבקרה של Supabase.' };
-                }
-                if (result.data && result.data.length > 0) {
-                    savedRow = result.data[0];
-                    savedId = savedRow.id;
-                }
-            } else {
-                // INSERT new recipe
-                const result = await _supabase.from('recipes').insert([recipeData]).select();
-                error = result.error;
-                if (result.data && result.data.length > 0) {
-                    savedRow = result.data[0];
-                    savedId = savedRow.id;
-                }
-            }
-
-            if (error) {
-                alert("שגיאה בשמירה: " + error.message);
-                document.getElementById('saveBtn').disabled = false;
-                document.getElementById('saveBtn').innerText = "נסה שוב";
-            } else {
-                // Update caches in place using the row the server just returned, so the
-                // next view/menu render doesn't have to re-fetch from the network.
-                if (savedRow) {
-                    fullRecipeCache[savedId] = savedRow;
-                    recipeImgCache[savedId] = savedRow.img;
-                    persistImgs();
-
-                    const listEntry = {
-                        id: savedRow.id,
-                        title: savedRow.title,
-                        cat: savedRow.cat,
-                        img_pos: savedRow.img_pos,
-                        created_at: savedRow.created_at,
-                    };
-                    if (recipesListCache) {
-                        const idx = recipesListCache.findIndex(r => r.id === savedId);
-                        if (idx >= 0) recipesListCache[idx] = listEntry;
-                        else recipesListCache.unshift(listEntry);
-                        persistList();
-                    }
-                }
-                editingRecipeId = null;
-                editingRecipeImg = null;
-                document.getElementById('title').value = '';
-                document.getElementById('category').value = '';
-                document.getElementById('ingredients').value = '';
-                document.getElementById('steps').value = '';
-                document.getElementById('imageFile').value = '';
-                document.getElementById('currentImagePreview').classList.add('hidden');
-
-                // Navigate to the saved recipe by its ID
-                if (savedId) {
-                    await viewRecipe(savedId);
-                } else {
-                    navigateTo('pageMenu');
-                }
-            }
-        }
-
+        // --- VIEW SINGLE RECIPE ---
         async function viewRecipe(id) {
-            const r = await fetchRecipeFull(id);
+            await loadRecipes();
+            const r = recipesById[id];
             if (!r) return navigateTo('pageMenu');
-            // Make sure the image is in our image cache so the menu card has it next time
-            if (r.img && !recipeImgCache[id]) {
-                recipeImgCache[id] = r.img;
-                persistImgs();
-            }
 
             // Update URL hash to recipe slug
             history.replaceState(null, '', '#' + toSlug(r.title));
@@ -722,28 +297,12 @@
                             </svg>
                             שיתוף
                         </button>
-                        <button onclick="editRecipe(${r.id})" class="bg-theme/10 text-theme hover:bg-theme hover:text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                            עריכה
-                        </button>
-                        <button onclick="deleteRecipe(${r.id})" class="bg-red-50 text-red-500 hover:bg-red-500 hover:text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            מחיקה
-                        </button>
                     </div>
                 </div>
-                <div class="relative group/img mb-10">
-                    <img id="recipeImg" src="${r.img}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl" style="object-position: center ${r.img_pos || 50}%">
-                    <div class="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center gap-1 bg-white/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg">
-                        <span class="text-xs text-gray-500 mb-1">📷</span>
-                        <input type="range" min="0" max="100" value="${r.img_pos || 50}" orient="vertical" class="img-pos-slider accent-[#c4704b]" oninput="document.getElementById('recipeImg').style.objectPosition = 'center ' + this.value + '%'" onchange="saveImagePosition(${r.id}, this.value)">
-                    </div>
+                <div class="mb-10">
+                    <img id="recipeImg" src="${escapeHtml(r.img)}" class="w-full h-48 md:h-72 object-cover rounded-[2rem] md:rounded-[3rem] shadow-xl" style="object-position: center ${r.img_pos || 50}%">
                 </div>
-                <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${r.title}</h1>
+                <h1 class="text-4xl font-bold mb-10 border-r-8 border-theme pr-6 text-gray-900">${escapeHtml(r.title)}</h1>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div class="bg-theme-light p-10 rounded-[2.5rem] border border-theme/20">
                         <h3 class="text-2xl font-bold mb-4 text-theme-dark">🛒 מצרכים</h3>
@@ -756,45 +315,6 @@
                 </div>
             `;
             navigateTo('pageView');
-        }
-
-        async function saveImagePosition(id, pos) {
-            const { error } = await _supabase.from('recipes').update({ img_pos: parseInt(pos) }).eq('id', id).select();
-            if (error) {
-                console.error('Error saving image position:', error.message);
-            } else {
-                // Update both caches so the menu reflects the new position immediately
-                const newPos = parseInt(pos);
-                if (recipesListCache) {
-                    const r = recipesListCache.find(rec => rec.id === id);
-                    if (r) { r.img_pos = newPos; persistList(); }
-                }
-                if (fullRecipeCache[id]) fullRecipeCache[id].img_pos = newPos;
-            }
-        }
-
-        async function editRecipe(id) {
-            const r = await fetchRecipeFull(id);
-            if (!r) return alert('מתכון לא נמצא');
-            openEditForm(r);
-        }
-
-        async function deleteRecipe(id) {
-            if (!confirm('למחוק את המתכון?')) return;
-            const { error } = await _supabase.from('recipes').delete().eq('id', id);
-            if (error) {
-                alert('שגיאה במחיקה: ' + error.message);
-            } else {
-                // Drop from all caches
-                if (recipesListCache) {
-                    recipesListCache = recipesListCache.filter(r => r.id !== id);
-                    persistList();
-                }
-                delete recipeImgCache[id];
-                delete fullRecipeCache[id];
-                persistImgs();
-                navigateTo('pageMenu');
-            }
         }
 
         async function shareRecipe() {
@@ -825,7 +345,7 @@
 
         async function viewRecipeBySlug(slug) {
             const title = fromSlug(slug);
-            const recipes = await fetchRecipeList();
+            const recipes = await loadRecipes();
             const r = recipes.find(rec => (rec.title || '').trim().toLowerCase() === title.trim().toLowerCase());
             if (r) {
                 await viewRecipe(r.id);
@@ -842,7 +362,7 @@
             if (pageId === 'pageMenu') {
                 history.replaceState(null, '', window.location.pathname);
                 document.title = 'ספר המתכונים של לולוז';
-                renderMenu(); // Uses cache if available
+                renderMenu(); // Uses in-memory cache if already loaded
             }
         }
 
@@ -858,7 +378,7 @@
 
         window.addEventListener('hashchange', handleRoute);
 
-        // Initialize — no delay needed, Supabase client is ready synchronously
+        // Initialize — recipes are loaded lazily from the YAML folder
         handleRoute();
     </script>
 </body>
