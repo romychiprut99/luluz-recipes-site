@@ -113,7 +113,9 @@
             try {
                 const res = await fetch(RECIPES_MANIFEST, { cache: 'no-cache' });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
-                files = await res.json();
+                // Parse with js-yaml (a superset of JSON) so small slips like a
+                // trailing comma in index.json don't blank out the whole site.
+                files = jsyaml.load(await res.text());
             } catch (e) {
                 console.error('Failed to load recipes manifest from ' + RECIPES_MANIFEST + ':', e);
                 recipesLoadError = 'לא ניתן לטעון את רשימת המתכונים (' + RECIPES_MANIFEST + ').';
