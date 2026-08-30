@@ -56,10 +56,18 @@
 
     <script>
         // --- CONFIGURATION ---
-        // Recipes are read from static YAML files in the ./recipes/ folder.
-        // recipes/index.json lists the YAML filenames (one recipe per file).
-        const RECIPES_DIR = 'recipes';
-        const RECIPES_MANIFEST = RECIPES_DIR + '/index.json';
+        // Recipes are read from static YAML files in the ./recipes/ folder,
+        // which must live next to this index.html file. recipes/index.json
+        // lists the YAML filenames (one recipe per file).
+        //
+        // Paths are resolved against the document's own directory so the app
+        // works no matter what subpath it is deployed under (e.g. GitHub Pages
+        // project sites) and regardless of the URL hash.
+        const RECIPES_BASE = new URL('recipes/', document.baseURI);
+        const RECIPES_MANIFEST = new URL('index.json', RECIPES_BASE).href;
+        function recipeUrl(filename) {
+            return new URL(filename, RECIPES_BASE).href;
+        }
 
         // --- STATE ---
         let recipesCache = null;    // Array of loaded recipe objects
@@ -94,8 +102,12 @@
         // --- LOADING RECIPES FROM YAML FILES ---
         // Reads the manifest, then fetches & parses every YAML file it lists.
         // Each recipe gets a stable id derived from its filename (slug).
+        let recipesLoadError = null; // Populated when the manifest can't be loaded
+
         async function loadRecipes({ forceRefresh = false } = {}) {
             if (recipesCache && !forceRefresh) return recipesCache;
+
+            recipesLoadError = null;
 
             let files;
             try {
@@ -103,13 +115,15 @@
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 files = await res.json();
             } catch (e) {
-                console.error('Failed to load recipes manifest:', e);
+                console.error('Failed to load recipes manifest from ' + RECIPES_MANIFEST + ':', e);
+                recipesLoadError = 'לא ניתן לטעון את רשימת המתכונים (' + RECIPES_MANIFEST + ').';
                 recipesCache = [];
                 return recipesCache;
             }
 
             if (!Array.isArray(files)) {
                 console.error('recipes/index.json must be an array of filenames');
+                recipesLoadError = 'קובץ recipes/index.json חייב להיות מערך של שמות קבצים.';
                 recipesCache = [];
                 return recipesCache;
             }
@@ -128,7 +142,7 @@
 
         async function loadSingleRecipe(filename) {
             try {
-                const res = await fetch(RECIPES_DIR + '/' + filename, { cache: 'no-cache' });
+                const res = await fetch(recipeUrl(filename), { cache: 'no-cache' });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const text = await res.text();
                 const data = jsyaml.load(text) || {};
@@ -255,7 +269,10 @@
             if (recipes.length === 0) {
                 tabsEl.innerHTML = '';
                 _renderedRecipeIds = null;
-                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">לא נמצאו מתכונים בתיקייה.</p>`;
+                const msg = recipesLoadError
+                    ? recipesLoadError + ' ודאי שתיקיית recipes/ נמצאת לצד index.html והאתר מוגש דרך HTTP.'
+                    : 'לא נמצאו מתכונים בתיקייה.';
+                grid.innerHTML = `<p class="col-span-full text-center py-20 text-gray-400 italic">${escapeHtml(msg)}</p>`;
                 return;
             }
 
